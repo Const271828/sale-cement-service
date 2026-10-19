@@ -1,5 +1,6 @@
 package org.example.cementsale;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -8,26 +9,35 @@ import java.util.TreeMap;
 
 public class OrderProcessor {
 
-    private final double startDiscount;
-    private final double step;
-    private final double price;
+    private final BigDecimal startDiscount;
+    private final BigDecimal step;
+    private final BigDecimal price;
 
     public OrderProcessor(double startDiscount, double step, double price) {
-        this.startDiscount = startDiscount;
-        this.step = step;
-        this.price = price;
+        this.startDiscount = BigDecimal.valueOf(startDiscount);
+        this.step = BigDecimal.valueOf(step);
+        this.price = BigDecimal.valueOf(price);
     }
 
-    public Map<String, Double> process(List<Order> orders) {
+    public Map<String, BigDecimal> process(List<Order> orders) {
         List<Order> sorted = new ArrayList<>(orders);
         sorted.sort(Comparator.comparing(Order::getDateTime));
 
-        Map<String, Double> totals = new TreeMap<>();
+        Map<String, BigDecimal> totals = new TreeMap<>();
         for (int i = 0; i < sorted.size(); i++) {
             Order order = sorted.get(i);
-            double discount = Math.max(0, startDiscount - i * step);
-            double cost = order.getWeight() * price * (1 - discount);
-            totals.merge(order.getCompany(), cost, Double::sum);
+
+            BigDecimal discount = startDiscount.subtract(step.multiply(BigDecimal.valueOf(i)));
+            if (discount.signum() < 0) {
+                discount = BigDecimal.ZERO;
+            }
+
+            BigDecimal weight = BigDecimal.valueOf(order.getWeight());
+            BigDecimal cost = weight
+                    .multiply(price)
+                    .multiply(BigDecimal.ONE.subtract(discount));
+
+            totals.merge(order.getCompany(), cost, BigDecimal::add);
         }
         return totals;
     }
